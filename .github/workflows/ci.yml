@@ -1,0 +1,74 @@
+# SPDX-FileCopyrightText: 2026 Alper Çelik <alper@alper-celik.dev>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later OR Apache-2.0
+
+name: CI
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - uses: nixbuild/nix-quick-install-action@v30
+        with:
+          nix_conf: |
+            keep-env-derivations = true
+            keep-outputs = true
+
+      - name: Restore and save Nix store
+        uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          gc-max-store-size-linux: 1G
+          purge: true
+          purge-prefixes: nix-${{ runner.os }}-
+          purge-created: 0
+          purge-last-accessed: P1DT12H
+          purge-primary-key: never
+
+      - name: Build site
+        id: build
+        run: echo "path=$(nix build --print-out-paths | tail -1)" >> "$GITHUB_OUTPUT"
+
+      # per-commit preview URL: https://<28-char-sha>.<project>.pages.dev
+      - name: wrangler preview
+        uses: cloudflare/wrangler-action@v3
+        id: preview
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: |
+            pages deploy --project-name gitdersleri --branch ${{ github.sha }} ${{ steps.build.outputs.path }}
+
+      - name: wrangler main
+        uses: cloudflare/wrangler-action@v3
+        id: production
+        if: github.ref_name == 'main'
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: |
+            pages deploy --project-name gitdersleri --branch main ${{ steps.build.outputs.path }}
+
+      - name: Summary
+        run: |
+          cat << EOF >> "$GITHUB_STEP_SUMMARY"
+            #### Preview: https://$(echo "$GITHUB_SHA" | head -c 28).gitdersleri.pages.dev/
+          EOF
+      - name: Summary (production)
+        if: github.ref_name == 'main'
+        run: |
+          cat << EOF >> "$GITHUB_STEP_SUMMARY"
+            #### Production: https://gitdersleri.pages.dev/
+          EOF
