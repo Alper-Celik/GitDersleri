@@ -49,7 +49,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: |
-            pages deploy --project-name gitdersleri --branch ${{ github.sha }} ${{ steps.build.outputs.path }}
+            pages deploy --project-name git-dersleri --branch ${{ github.sha }} ${{ steps.build.outputs.path }}
 
       - name: wrangler main
         uses: cloudflare/wrangler-action@v3
@@ -59,16 +59,16 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: |
-            pages deploy --project-name gitdersleri --branch main ${{ steps.build.outputs.path }}
+            pages deploy --project-name git-dersleri --branch main ${{ steps.build.outputs.path }}
 
       - name: Summary
         run: |
           cat << EOF >> "$GITHUB_STEP_SUMMARY"
-            #### Preview: https://$(echo "$GITHUB_SHA" | head -c 28).gitdersleri.pages.dev/
+            #### Preview: https://$(echo "$GITHUB_SHA" | head -c 28).git-dersleri.pages.dev
           EOF
       - name: Summary (production)
         if: github.ref_name == 'main'
         run: |
           cat << EOF >> "$GITHUB_STEP_SUMMARY"
-            #### Production: https://gitdersleri.pages.dev/
+            #### Production: https://git-dersleri.alper-celik.dev
           EOF
